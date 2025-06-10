@@ -41,6 +41,27 @@
     .animate-pulse {
       animation: pulse 1.5s infinite ease-in-out;
     }
+    /* Spinner */
+    .spinner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .spinner.hidden {
+      display: none;
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
     /* Button Hover Effect */
     .btn-orange {
       @apply bg-orange-500 text-white hover:bg-orange-600 transition duration-200 ease-in-out;
@@ -71,6 +92,14 @@
 
   <!-- Main Content -->
   <div class="container mx-auto px-4 sm:px-6 py-8">
+    <!-- Spinner -->
+    <div id="spinner" class="spinner hidden">
+      <svg class="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+    </div>
+
     <section id="authSection" class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
       <!-- Toggle Buttons -->
       <div class="flex justify-between mb-4">
@@ -151,6 +180,7 @@
     const signupToggle = document.getElementById('signupToggle');
     const forgotPassword = document.getElementById('forgotPassword');
     const forgotPasswordSection = document.getElementById('forgotPasswordSection');
+    const spinner = document.getElementById('spinner');
     let isLoginMode = true;
 
     function showToast(message, isError = false) {
@@ -159,6 +189,16 @@
       toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
+    }
+
+    function showLoading() {
+      spinner.classList.remove('hidden');
+      showSkeleton();
+    }
+
+    function hideLoading() {
+      spinner.classList.add('hidden');
+      hideSkeleton();
     }
 
     function showSkeleton() {
@@ -209,7 +249,7 @@
 
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      showSkeleton();
+      showLoading();
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value.trim();
 
@@ -259,7 +299,7 @@
       } catch (error) {
         console.error('Auth error:', error);
         showToast(error.message, true);
-        hideSkeleton();
+        hideLoading();
       }
     });
 
@@ -268,22 +308,34 @@
       const email = prompt('Enter your email address:');
       if (!email) return;
 
+      showLoading();
       try {
         await sendPasswordResetEmail(auth, email);
         showToast('Password reset email sent!');
+        hideLoading();
       } catch (error) {
         console.error('Password reset error:', error);
         showToast(error.message, true);
+        hideLoading();
       }
     });
 
     // Redirect if already logged in
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const driverRef = ref(db, `drivers/${user.uid}`);
-        const snapshot = await get(driverRef);
-        if (snapshot.exists()) {
-          window.location.href = 'driver_dashboard.html';
+        showLoading();
+        try {
+          const driverRef = ref(db, `drivers/${user.uid}`);
+          const snapshot = await get(driverRef);
+          if (snapshot.exists()) {
+            window.location.href = 'driver_dashboard.html';
+          } else {
+            hideLoading();
+          }
+        } catch (error) {
+          console.error('Auth check error:', error);
+          showToast(error.message, true);
+          hideLoading();
         }
       }
     });
